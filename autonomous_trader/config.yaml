@@ -1,0 +1,97 @@
+# API Keys (use .env for secrets)
+alpaca:
+  paper_key: ""      # Alpaca paper trading API key
+  paper_secret: ""   # Alpaca secret
+  base_url: "https://paper-api.alpaca.markets"
+
+# Screening criteria
+screening:
+  universe: "sp500"           # sp500, nasdaq100, russell2000, custom
+  min_market_cap: 1000000000  # $1B
+  max_pe: 25
+  min_volume: 1000000
+  min_revenue_growth: 0.10
+  max_debt_equity: 1.5
+  min_roe: 0.10
+  exclude_sectors: ["Utilities", "Real Estate"]
+  max_per_industry: 5
+
+# Analysis settings
+analysis:
+  model: "anthropic/claude-opus-4-5"
+  max_tickers_per_run: 10
+  timeout_minutes: 30
+  prompt_template: "templates/analysis_prompt.md"
+  use_tradingagents: true
+
+# Trading parameters
+trading:
+  dry_run: true
+  max_positions: 20
+  position_size_pct: 0.05      # 5% per position
+  max_sector_exposure_pct: 0.20
+  stop_loss_pct: 0.10
+  take_profit_pct: 0.20
+  use_bracket_orders: true
+  min_confidence: 0.65
+
+# Risk limits
+risk:
+  max_daily_loss_pct: 0.02
+  max_drawdown_pct: 0.10
+  max_position_value: 50000
+
+# Execution scheduling (queue-based system)
+execution:
+  enabled: true
+  run_during_market_hours_only: true
+  market_open_time: "09:30"
+  market_close_time: "16:00"
+  timezone: "America/New_York"
+  check_interval_minutes: 15
+  signal_expiry_days: 2
+  execute_at_market_open: true
+  delay_after_open_minutes: 5
+
+# Research phase (screening + analysis)
+research:
+  enabled: true
+  run_when_market_closed: true
+  schedule:
+    daily_time: "18:00"
+    frequency: "daily"
+  auto_queue_signals: true
+  max_signals_per_day: 10
+
+# Queue management
+queue:
+  persistence: true
+  deduplicate: true
+  requeue_failed: true
+  max_queue_size: 50
+  max_position_size_pct: 0.05
+
+# Phase control (for manual runs)
+phases:
+  research_only: false
+  execute_only: false
+
+# Schedule (legacy, for backward compatibility)
+schedule:
+  screen_time: "09:00"
+  analyze_time: "10:00"
+  execute_time: "11:00"
+  market_hours_only: true
+  timezone: "America/New_York"
+
+# Logging & alerts
+logging:
+  level: "INFO"
+  log_file: "logs/trading_agent.log"
+  trade_log: "data/trade_log.csv"
+  performance_log: "data/performance.csv"
+
+alerts:
+  enabled: false
+  discord_webhook: ""
+  notify_on: ["trade_executed", "position_closed", "stop_loss_hit", "error"]

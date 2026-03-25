@@ -1,7 +1,15 @@
 import os
+import warnings
 from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
+
+# Load .env file if not already loaded
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
@@ -60,9 +68,16 @@ class OpenAIClient(BaseLLMClient):
             base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = base_url
             if api_key_env:
-                api_key = os.environ.get(api_key_env)
+                # Check kwargs first (user-provided), then environment
+                api_key = self.kwargs.get("api_key") or os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                else:
+                    warnings.warn(
+                        f"API key '{api_key_env}' not found in environment or kwargs. "
+                        f"Some providers may require authentication.",
+                        UserWarning
+                    )
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:

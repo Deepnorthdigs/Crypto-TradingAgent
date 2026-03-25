@@ -217,3 +217,10 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Autonomous Trading
+autonomous_trader/logs/
+autonomous_trader/data/
+autonomous_trader/.pytest_cache/
+**/__pycache__/
+*.pyc

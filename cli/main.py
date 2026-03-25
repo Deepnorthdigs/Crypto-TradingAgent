@@ -544,7 +544,7 @@ def get_user_selections():
             "Step 5: OpenAI backend", "Select which service to talk to"
         )
     )
-    selected_llm_provider, backend_url = select_llm_provider()
+    selected_llm_provider, backend_url, api_key_env = select_llm_provider()
     
     # Step 6: Thinking agents
     console.print(
@@ -593,6 +593,7 @@ def get_user_selections():
         "research_depth": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
+        "api_key_env": api_key_env,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
@@ -932,6 +933,12 @@ def run_analysis():
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
 
+    # Load API key from environment based on provider
+    api_key_env = selections.get("api_key_env")
+    if api_key_env:
+        import os
+        config["api_key"] = os.environ.get(api_key_env)
+
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
 
@@ -968,7 +975,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -979,7 +986,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -993,7 +1000,7 @@ def run_analysis():
                 if content:
                     file_name = f"{section_name}.md"
                     text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(text)
         return wrapper
 
@@ -1191,6 +1198,13 @@ def run_analysis():
 @app.command()
 def analyze():
     run_analysis()
+
+
+@app.command(name="autonomous")
+def run_autonomous_trading():
+    """Launch the autonomous trading CLI shell."""
+    from cli.autonomous import main as auto_main
+    auto_main()
 
 
 if __name__ == "__main__":

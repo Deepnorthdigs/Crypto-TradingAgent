@@ -160,6 +160,50 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+## Autonomous Trading System
+
+TradingAgents includes a fully autonomous trading system that screens stocks, analyzes them with TradingAgents agents, queues trade signals, and executes trades via Alpaca paper trading API.
+
+### Features
+
+- **Automated Research Phase**: Screens stocks based on configurable criteria, runs TradingAgents analysis, queues actionable signals
+- **Queue-Based Execution**: Signals persist across sessions with deduplication and expiry
+- **Bracket Orders**: Automatic take-profit and stop-loss on every trade
+- **Risk Management**: Position sizing limits, sector concentration checks
+- **Market Hours Only**: Respects trading hours (9:30 AM - 4:00 PM ET, weekdays)
+- **Dry Run Mode**: Test without real trades
+- **Discord Alerts**: Optional webhook notifications
+
+### Quick Start
+
+```bash
+# Launch autonomous trading CLI
+python -m cli.autonomous
+
+# Or from the main CLI
+tradingagents autonomous
+```
+
+```bash
+autonomous> start              # Start scheduler
+autonomous> research            # Run research phase
+autonomous> queue list          # View signals
+autonomous> execute             # Execute trades
+autonomous> dashboard           # Full status view
+```
+
+### Configuration
+
+Edit `autonomous_trader/config.yaml` or use environment variables:
+
+```bash
+export ALPACA_PAPER_KEY=...
+export ALPACA_PAPER_SECRET=...
+export HERMES_AUTO_DRY_RUN=false
+```
+
+For full documentation, see [autonomous_trader/README.md](autonomous_trader/README.md).
+
 ## TradingAgents Package
 
 ### Implementation Details

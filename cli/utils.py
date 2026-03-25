@@ -163,6 +163,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
         ],
         "openrouter": [
+            ("StepFun Step-3.5 Flash (free)", "stepfun/step-3.5-flash:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
         ],
@@ -230,6 +231,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
         ],
         "openrouter": [
+            ("StepFun Step-3.5 Flash (free)", "stepfun/step-3.5-flash:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
         ],
@@ -262,23 +264,23 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
-def select_llm_provider() -> tuple[str, str]:
+def select_llm_provider() -> tuple[str, str, str]:
     """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
-    BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("xAI", "https://api.x.ai/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),
+    # Define OpenAI api options with their corresponding endpoints and API key env vars
+    PROVIDERS = [
+        ("OpenAI", "https://api.openai.com/v1", "OPENAI_API_KEY"),
+        ("Google", "https://generativelanguage.googleapis.com/v1", "GOOGLE_API_KEY"),
+        ("Anthropic", "https://api.anthropic.com/", "ANTHROPIC_API_KEY"),
+        ("xAI", "https://api.x.ai/v1", "XAI_API_KEY"),
+        ("Openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+        ("Ollama", "http://localhost:11434/v1", None),
     ]
     
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(display, url, api_key_env))
+            for display, url, api_key_env in PROVIDERS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -294,10 +296,10 @@ def select_llm_provider() -> tuple[str, str]:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
     
-    display_name, url = choice
+    display_name, url, api_key_env = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
-    return display_name, url
+    return display_name, url, api_key_env
 
 
 def ask_openai_reasoning_effort() -> str:
