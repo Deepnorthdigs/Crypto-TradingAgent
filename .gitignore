@@ -222,5 +222,18 @@ __marimo__/
 autonomous_trader/logs/
 autonomous_trader/data/
 autonomous_trader/.pytest_cache/
+autonomous_trader/.env
 **/__pycache__/
 *.pyc
+
+# Results
+results/
+
+# Large binaries
+*.exe
+*.dmg
+*.zip
+
+# IDE
+.vscode/
+.idea/
