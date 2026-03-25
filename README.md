@@ -1,265 +1,192 @@
-<p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
+# Autonomous Trading System
 
-<div align="center" style="line-height: 1;">
-  <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
-  <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="./assets/wechat.png" target="_blank"><img alt="WeChat" src="https://img.shields.io/badge/WeChat-TauricResearch-brightgreen?logo=wechat&logoColor=white"/></a>
-  <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <br>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/Join_GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
-</div>
+A fully autonomous stock trading system that screens stocks, analyzes them with TradingAgents, queues trade signals, and executes trades via Alpaca paper trading API.
 
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
-</div>
+## Features
 
----
+### Core Components
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework
+| Module | Description |
+|--------|-------------|
+| **Screener** | Stock screening using yfinance with customizable filters (market cap, volume, sector, price range) |
+| **Analyzer** | Integration with TradingAgents for deep stock analysis |
+| **Queue** | Signal queue with persistence, deduplication, and expiry management |
+| **Executor** | Alpaca API integration with bracket orders (entry, take-profit, stop-loss) |
+| **Risk Manager** | Position sizing, sector concentration, and max position limits |
+| **Portfolio Tracker** | Real-time position tracking with sector exposure monitoring |
+| **Monitor** | Performance logging, metrics calculation, and alerts |
+| **Scheduler** | Market-hours-aware scheduler for research and execution phases |
 
-## News
-- [2026-03] **TradingAgents v0.2.2** released with GPT-5.4/Gemini 3.1/Claude 4.6 model coverage, five-tier rating scale, OpenAI Responses API, Anthropic effort control, and cross-platform stability.
-- [2026-02] **TradingAgents v0.2.0** released with multi-provider LLM support (GPT-5.x, Gemini 3.x, Claude 4.x, Grok 4.x) and improved system architecture.
-- [2026-01] **Trading-R1** [Technical Report](https://arxiv.org/abs/2509.11420) released, with [Terminal](https://github.com/TauricResearch/Trading-R1) expected to land soon.
+### Key Capabilities
 
-<div align="center">
-<a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" />
-   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" style="width: 80%; height: auto;" />
- </picture>
-</a>
-</div>
+- **Automated Research Phase**: Screens stocks, runs TradingAgents analysis, queues actionable signals
+- **Queue-Based Execution**: Signals persist across sessions, expire after configurable days, deduplicate by ticker
+- **Bracket Orders**: Each signal executes with take-profit and stop-loss automatically
+- **Risk Management**: Per-position limits, sector concentration checks, max daily signals
+- **Market Hours Only**: Respects trading hours (9:30 AM - 4:00 PM ET, weekdays)
+- **Dry Run Mode**: Test without real trades
+- **Discord Alerts**: Optional webhook notifications for trades and errors
+- **Configurable**: YAML config, environment variable overrides
 
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
->
-> So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
+### CLI Commands
 
-<div align="center">
-
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
-
-</div>
-
-## TradingAgents Framework
-
-TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
-
-<p align="center">
-  <img src="assets/schema.png" style="width: 100%; height: auto;">
-</p>
-
-> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
-
-Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
-
-### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
-
-<p align="center">
-  <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Researcher Team
-- Comprises both bullish and bearish researchers who critically assess the insights provided by the Analyst Team. Through structured debates, they balance potential gains against inherent risks.
-
-<p align="center">
-  <img src="assets/researcher.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions. It determines the timing and magnitude of trades based on comprehensive market insights.
-
-<p align="center">
-  <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Risk Management and Portfolio Manager
-- Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
-
-<p align="center">
-  <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## Installation and CLI
-
-### Installation
-
-Clone TradingAgents:
-```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
-cd TradingAgents
+```
+start/stop         Control the scheduler
+status             Show system status
+queue status/list  Queue management
+research           Trigger research phase
+execute            Trigger execution phase
+positions          View Alpaca positions
+config             Show/update configuration
+dashboard          Comprehensive status view
 ```
 
-Create a virtual environment in any of your favorite environment managers:
-```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
-```
+## Installation
 
-Install the package and its dependencies:
+1. Install TradingAgents dependencies:
 ```bash
 pip install .
 ```
 
-### Required APIs
-
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
-
+2. Install autonomous_trader dependencies:
 ```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
-export GOOGLE_API_KEY=...          # Google (Gemini)
-export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
-export XAI_API_KEY=...             # xAI (Grok)
-export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+pip install -r autonomous_trader/requirements.txt
 ```
 
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
-
-Alternatively, copy `.env.example` to `.env` and fill in your keys:
-```bash
-cp .env.example .env
+3. Configure API keys in `config.yaml`:
+```yaml
+alpaca:
+  key: "your-paper-api-key"
+  secret: "your-paper-api-secret"
+  url: "https://paper-api.alpaca.markets"
 ```
 
-### CLI Usage
-
-Launch the interactive CLI:
+4. Set environment variables (optional):
 ```bash
-tradingagents          # installed command
-python -m cli.main     # alternative: run directly from source
+export OPENAI_API_KEY=...
+export ALPACA_PAPER_KEY=...
+export ALPACA_PAPER_SECRET=...
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
-<p align="center">
-  <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
+## Usage
 
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
-
-<p align="center">
-  <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-<p align="center">
-  <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## Autonomous Trading System
-
-TradingAgents includes a fully autonomous trading system that screens stocks, analyzes them with TradingAgents agents, queues trade signals, and executes trades via Alpaca paper trading API.
-
-### Features
-
-- **Automated Research Phase**: Screens stocks based on configurable criteria, runs TradingAgents analysis, queues actionable signals
-- **Queue-Based Execution**: Signals persist across sessions with deduplication and expiry
-- **Bracket Orders**: Automatic take-profit and stop-loss on every trade
-- **Risk Management**: Position sizing limits, sector concentration checks
-- **Market Hours Only**: Respects trading hours (9:30 AM - 4:00 PM ET, weekdays)
-- **Dry Run Mode**: Test without real trades
-- **Discord Alerts**: Optional webhook notifications
-
-### Quick Start
+### Interactive CLI
 
 ```bash
-# Launch autonomous trading CLI
 python -m cli.autonomous
+```
 
-# Or from the main CLI
+Or from the TradingAgents CLI:
+```bash
 tradingagents autonomous
 ```
+
+### Command Examples
 
 ```bash
 autonomous> start              # Start scheduler
 autonomous> research            # Run research phase
 autonomous> queue list          # View signals
 autonomous> execute             # Execute trades
+autonomous> config dry_run=false  # Enable live trading
 autonomous> dashboard           # Full status view
 ```
 
-### Configuration
-
-Edit `autonomous_trader/config.yaml` or use environment variables:
+### Standalone Scripts
 
 ```bash
-export ALPACA_PAPER_KEY=...
-export ALPACA_PAPER_SECRET=...
-export HERMES_AUTO_DRY_RUN=false
+# Research phase only
+python autonomous_trader/scripts/research.py
+
+# Execution phase only
+python autonomous_trader/scripts/execute.py
+
+# Full scheduler (research + execution loop)
+python autonomous_trader/scripts/scheduler.py
 ```
 
-For full documentation, see [autonomous_trader/README.md](autonomous_trader/README.md).
+## Configuration
 
-## TradingAgents Package
+Edit `autonomous_trader/config.yaml`:
 
-### Implementation Details
+```yaml
+alpaca:
+  key: "..."
+  secret: "..."
+  url: "https://paper-api.alpaca.markets"
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
+screener:
+  min_market_cap: 500_000_000
+  min_volume: 500_000
+  excluded_sectors: ["Financial Services", "Real Estate"]
+  max_results: 10
+  top_n: 5
 
-### Python Usage
+trading:
+  dry_run: true
+  max_position_value: 1000
+  max_position_pct: 0.02
+  max_per_sector: 0.20
+  stop_loss_pct: 0.05
+  take_profit_pct: 0.15
+  max_signals_per_day: 10
+  signal_expiry_days: 2
 
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+research:
+  research_time: "18:00"
+  min_confidence: 0.65
+  auto_queue_signals: true
 
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+execution:
+  market_hours_only: true
+  execution_check_interval: 15
+  delay_after_open: 5
+  notify_on_trade: true
+  notify_on_error: true
+  discord_webhook: ""
 
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
-
-# forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
+logging:
+  level: "INFO"
+  log_dir: "autonomous_trader/logs"
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
-
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-
-config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
-config["max_debate_rounds"] = 2
-
-ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
 ```
 
-See `tradingagents/default_config.py` for all configuration options.
-
-## Contributing
-
-We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
-
-## Citation
-
-Please reference our work if you find *TradingAgents* provides you with some help :)
+## Architecture
 
 ```
-@misc{xiao2025tradingagentsmultiagentsllmfinancial,
-      title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
-      author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
-      year={2025},
-      eprint={2412.20138},
-      archivePrefix={arXiv},
-      primaryClass={q-fin.TR},
-      url={https://arxiv.org/abs/2412.20138}, 
-}
+autonomous_trader/
+├── config.yaml              # Configuration
+├── src/
+│   ├── logger.py           # Logging setup
+│   ├── screener.py         # Stock screening (yfinance)
+│   ├── analyzer.py         # TradingAgents integration
+│   ├── queue.py            # Signal queue with persistence
+│   ├── executor.py          # Alpaca trade execution
+│   ├── risk.py             # Risk management checks
+│   ├── portfolio.py        # Position tracking
+│   ├── monitor.py          # Performance logging
+│   ├── scheduler.py        # Market-aware scheduler
+│   └── researcher.py       # Research agent
+├── scripts/
+│   ├── research.py         # Research phase script
+│   ├── execute.py          # Execution phase script
+│   ├── scheduler.py        # Master orchestrator
+│   └── run_daily.py        # Daily workflow
+├── templates/
+│   └── analysis_prompt.md  # Prompt template
+├── data/
+│   └── queue/             # Signal persistence
+└── tests/                  # Unit tests (39 passing)
 ```
+
+## Testing
+
+```bash
+cd autonomous_trader
+python -m pytest tests/ -v
+```
+
+## Disclaimer
+
+> This software is for educational and research purposes. Trading involves substantial risk of loss. Past performance does not guarantee future results. The autonomous trading system is experimental and not intended as financial advice.
