@@ -18,7 +18,7 @@ screening:
 
 # Analysis settings
 analysis:
-  model: "anthropic/claude-opus-4-5"
+  model: "openrouter/stepfun/step-3.5-flash:free"
   max_tickers_per_run: 10
   timeout_minutes: 30
   prompt_template: "templates/analysis_prompt.md"

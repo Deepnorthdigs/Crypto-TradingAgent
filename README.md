@@ -79,10 +79,11 @@ pip install -r autonomous_trader/requirements.txt
 
 Create a `.env` file or set environment variables:
 ```bash
-# LLM Provider (required)
-export OPENAI_API_KEY=sk-...
+# LLM Provider (required) - Default uses OpenRouter with free model
+export OPENROUTER_API_KEY=sk-or-v1-...
 
-# Or use other providers
+# Alternative providers
+export OPENAI_API_KEY=sk-...
 export GOOGLE_API_KEY=...
 export ANTHROPIC_API_KEY=...
 
@@ -97,6 +98,9 @@ alpaca:
   key: "your-paper-api-key"
   secret: "your-paper-api-secret"
   url: "https://paper-api.alpaca.markets"
+
+analysis:
+  model: "openrouter/stepfun/step-3.5-flash:free"  # Default: free OpenRouter model
 ```
 
 ## Usage

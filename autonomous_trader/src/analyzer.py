@@ -102,20 +102,13 @@ Provide your analysis now."""
             config = DEFAULT_CONFIG.copy()
             
             analysis_config = self.analysis_config
-            model = analysis_config.get("model", "anthropic/claude-opus-4-5")
+            model = analysis_config.get("model", "openrouter/stepfun/step-3.5-flash:free")
             
             if "/" in model:
                 provider, model_name = model.split("/", 1)
                 config["llm_provider"] = provider
-                if "claude" in model.lower():
-                    config["deep_think_llm"] = model
-                    config["quick_think_llm"] = model
-                elif "gpt" in model.lower():
-                    config["deep_think_llm"] = model
-                    config["quick_think_llm"] = model
-                elif "gemini" in model.lower():
-                    config["deep_think_llm"] = model
-                    config["quick_think_llm"] = model
+                config["deep_think_llm"] = model
+                config["quick_think_llm"] = model
             
             graph = TradingAgentsGraph(debug=False, config=config)
             
@@ -132,6 +125,53 @@ Provide your analysis now."""
             return self._call_direct_llm(ticker, prompt)
     
     def _call_direct_llm(self, ticker: str, prompt: str) -> Optional[dict]:
+        model = self.analysis_config.get("model", "openrouter/stepfun/step-3.5-flash:free")
+        
+        if "openrouter" in model.lower():
+            return self._call_openrouter(ticker, prompt, model)
+        elif "anthropic" in model.lower() or "claude" in model.lower():
+            return self._call_anthropic(ticker, prompt, model)
+        elif "openai" in model.lower() or "gpt" in model.lower():
+            return self._call_openai(ticker, prompt, model)
+        else:
+            return self._call_openrouter(ticker, prompt, model)
+    
+    def _call_openrouter(self, ticker: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            if not api_key:
+                logger.error("OPENROUTER_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else model
+            
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"OpenRouter call failed for {ticker}: {e}")
+            return None
+    
+    def _call_anthropic(self, ticker: str, prompt: str, model: str) -> Optional[dict]:
         try:
             import anthropic
             
@@ -140,10 +180,12 @@ Provide your analysis now."""
                 logger.error("ANTHROPIC_API_KEY not set")
                 return None
             
+            model_name = model.split("/")[-1] if "/" in model else "claude-opus-4-5"
+            
             client = anthropic.Anthropic()
             
             response = client.messages.create(
-                model="claude-opus-4-5",
+                model=model_name,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -152,7 +194,33 @@ Provide your analysis now."""
             return self._extract_json(output)
             
         except Exception as e:
-            logger.error(f"Direct LLM call failed for {ticker}: {e}")
+            logger.error(f"Anthropic call failed for {ticker}: {e}")
+            return None
+    
+    def _call_openai(self, ticker: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            import openai
+            
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                logger.error("OPENAI_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "gpt-4o"
+            
+            client = openai.OpenAI(api_key=api_key)
+            
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
+            )
+            
+            output = response.choices[0].message.content
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"OpenAI call failed for {ticker}: {e}")
             return None
     
     def _parse_tradingagents_decision(self, ticker: str, decision: str) -> dict:
