@@ -51,6 +51,19 @@ dashboard          Comprehensive status view
 - [Alpaca paper trading account](https://alpaca.markets/) (free)
 - API keys for at least one LLM provider
 
+### API Keys Required
+
+| Service | Purpose | Required | Get Key At |
+|---------|---------|----------|------------|
+| **OpenRouter** | LLM for analysis (default, free tier available) | Yes | [openrouter.ai](https://openrouter.ai/) |
+| **Alpaca** | Paper trading execution | Yes | [alpaca.markets](https://app.alpaca.markets/) |
+
+Alternative LLM providers (optional - only if not using OpenRouter):
+- OpenAI (GPT-4)
+- Google (Gemini)
+- Anthropic (Claude)
+- xAI (Grok)
+
 ### Setup
 
 1. **Clone the repository:**
@@ -77,17 +90,24 @@ pip install -r autonomous_trader/requirements.txt
 
 5. **Configure API keys:**
 
-Create a `.env` file or set environment variables:
+Copy the example env file and fill in your keys:
 ```bash
-# LLM Provider (required) - Default uses OpenRouter with free model
+cp .env.example .env
+```
+
+Then edit `.env` with your API keys:
+```bash
+# Required: OpenRouter for LLM analysis (free tier available)
+OPENROUTER_API_KEY=sk-or-v1-...
+
+# Required: Alpaca for paper trading
+ALPACA_PAPER_KEY=PKXXXXXXXXXX
+ALPACA_PAPER_SECRET=SecXXXXXXXXXX
+```
+
+Or set environment variables directly:
+```bash
 export OPENROUTER_API_KEY=sk-or-v1-...
-
-# Alternative providers
-export OPENAI_API_KEY=sk-...
-export GOOGLE_API_KEY=...
-export ANTHROPIC_API_KEY=...
-
-# Alpaca Paper Trading (required for live execution)
 export ALPACA_PAPER_KEY=your-paper-api-key
 export ALPACA_PAPER_SECRET=your-paper-api-secret
 ```
@@ -95,9 +115,13 @@ export ALPACA_PAPER_SECRET=your-paper-api-secret
 Or edit `autonomous_trader/config.yaml` directly:
 ```yaml
 alpaca:
-  key: "your-paper-api-key"
-  secret: "your-paper-api-secret"
-  url: "https://paper-api.alpaca.markets"
+  paper_key: "your-paper-api-key"
+  paper_secret: "your-paper-api-secret"
+  base_url: "https://paper-api.alpaca.markets"
+
+analysis:
+  model: "openrouter/stepfun/step-3.5-flash:free"
+```
 
 analysis:
   model: "openrouter/stepfun/step-3.5-flash:free"  # Default: free OpenRouter model
