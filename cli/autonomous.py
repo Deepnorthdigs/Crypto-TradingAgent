@@ -38,6 +38,10 @@ AUTONOMOUS_CONFIG = {
     "auto_queue_signals": True,
     "min_confidence": 0.65,
     "max_per_sector": 0.20,
+    "model": "openrouter/stepfun/step-3.5-flash:free",
+    "alpaca_key": "",
+    "alpaca_secret": "",
+    "alpaca_url": "https://paper-api.alpaca.markets",
 }
 
 
@@ -45,15 +49,44 @@ def get_config() -> Dict:
     """Load merged config from files and environment."""
     config = AUTONOMOUS_CONFIG.copy()
     
-    config_path = Path("config.yaml")
-    if config_path.exists():
-        try:
-            with open(config_path) as f:
-                file_config = yaml.safe_load(f) or {}
-                at_config = file_config.get("autonomous_trader", {})
-                config.update(at_config)
-        except Exception:
-            pass
+    config_paths = [
+        Path("autonomous_trader/config.yaml"),
+        Path("config.yaml"),
+    ]
+    
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    file_config = yaml.safe_load(f) or {}
+                    
+                    at_config = file_config.get("autonomous_trader", {})
+                    if at_config:
+                        config.update(at_config)
+                    
+                    if "analysis" in file_config:
+                        config["model"] = file_config["analysis"].get("model", config["model"])
+                    
+                    if "alpaca" in file_config:
+                        config["alpaca_key"] = file_config["alpaca"].get("paper_key", "")
+                        config["alpaca_secret"] = file_config["alpaca"].get("paper_secret", "")
+                        config["alpaca_url"] = file_config["alpaca"].get("base_url", config["alpaca_url"])
+                    
+                    if "trading" in file_config:
+                        config["dry_run"] = file_config["trading"].get("dry_run", config["dry_run"])
+                        config["min_confidence"] = file_config["trading"].get("min_confidence", config["min_confidence"])
+                    
+                    if "execution" in file_config:
+                        config["market_hours_only"] = file_config["execution"].get("run_during_market_hours_only", config["market_hours_only"])
+                        config["signal_expiry_days"] = file_config["execution"].get("signal_expiry_days", config["signal_expiry_days"])
+                    
+                    if "alerts" in file_config:
+                        config["discord_webhook"] = file_config["alerts"].get("discord_webhook", "")
+                        config["notify_on_trade"] = "trade_executed" in file_config["alerts"].get("notify_on", [])
+                    
+                    break
+            except Exception as e:
+                print(f"Warning: Failed to load config from {config_path}: {e}")
     
     for key in list(config.keys()):
         env_key = f"HERMES_AUTO_{key.upper()}"
@@ -66,12 +99,26 @@ def get_config() -> Dict:
             else:
                 config[key] = value
     
+    for key in ["ALPACA_PAPER_KEY", "ALPACA_KEY"]:
+        if key in os.environ:
+            config["alpaca_key"] = os.environ[key]
+    
+    for key in ["ALPACA_PAPER_SECRET", "ALPACA_SECRET"]:
+        if key in os.environ:
+            config["alpaca_secret"] = os.environ[key]
+    
+    for key in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]:
+        if key in os.environ:
+            config[f"env_{key}"] = os.environ[key]
+    
     return config
 
 
 def save_config(config: Dict) -> None:
     """Save config to file."""
-    config_path = Path("config.yaml")
+    config_path = Path("autonomous_trader/config.yaml")
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
     if config_path.exists():
         try:
             with open(config_path) as f:
@@ -81,7 +128,40 @@ def save_config(config: Dict) -> None:
     else:
         file_config = {}
     
-    file_config["autonomous_trader"] = config
+    flat_keys = {
+        "enabled", "mode", "research_time", "execution_check_interval",
+        "market_hours_only", "max_signals_per_day", "dry_run", "notify_on_trade",
+        "notify_on_error", "discord_webhook", "delay_after_open", "signal_expiry_days",
+        "auto_queue_signals", "min_confidence", "max_per_sector", "model",
+        "alpaca_key", "alpaca_secret", "alpaca_url"
+    }
+    
+    new_at_config = {k: v for k, v in config.items() if k in flat_keys}
+    
+    existing_keys = {
+        "alpaca", "screening", "analysis", "trading", "risk", "execution",
+        "research", "queue", "phases", "schedule", "logging", "alerts"
+    }
+    
+    for key in existing_keys:
+        if key in file_config and key not in ("alpaca", "analysis", "trading", "execution", "alerts"):
+            new_at_config[key] = file_config[key]
+    
+    if "alpaca" in file_config:
+        file_config["alpaca"]["paper_key"] = config.get("alpaca_key", "")
+        file_config["alpaca"]["paper_secret"] = config.get("alpaca_secret", "")
+        file_config["alpaca"]["base_url"] = config.get("alpaca_url", "https://paper-api.alpaca.markets")
+    else:
+        file_config["alpaca"] = {
+            "paper_key": config.get("alpaca_key", ""),
+            "paper_secret": config.get("alpaca_secret", ""),
+            "base_url": config.get("alpaca_url", "https://paper-api.alpaca.markets")
+        }
+    
+    if "analysis" in file_config:
+        file_config["analysis"]["model"] = config.get("model", "openrouter/stepfun/step-3.5-flash:free")
+    
+    file_config["autonomous_trader"] = new_at_config
     
     with open(config_path, "w") as f:
         yaml.dump(file_config, f, default_flow_style=False, sort_keys=False)
@@ -193,11 +273,11 @@ class AutonomousCLI:
         table.add_column("Setting", style="dim")
         table.add_column("Value")
         
-        table.add_row("Scheduler Running", "🟢 Yes" if self.running else "🔴 No")
+        table.add_row("Scheduler Running", "Yes" if self.running else "No")
         table.add_row("Mode", self.config.get("mode", "scheduler"))
         table.add_row("Dry Run", "Yes" if self.config.get("dry_run") else "No")
         table.add_row("Market Hours Only", "Yes" if self.config.get("market_hours_only") else "No")
-        table.add_row("Market Open", "🟢 Yes" if is_market_open() else "🔴 No")
+        table.add_row("Market Open", "Yes" if is_market_open() else "No")
         
         console.print(table)
         
@@ -237,10 +317,10 @@ class AutonomousCLI:
             self.config["enabled"] = True
             save_config(self.config)
             
-            self.print("✅ Autonomous trading scheduler started", style="green")
+            self.print("Autonomous trading scheduler started", style="green")
             self.print("   Use 'status' to monitor, 'stop' to halt")
         except Exception as e:
-            self.print(f"❌ Failed to start scheduler: {e}", style="red")
+            self.print(f"Failed to start scheduler: {e}", style="red")
             import traceback
             traceback.print_exc()
         
@@ -259,9 +339,9 @@ class AutonomousCLI:
             self.config["enabled"] = False
             save_config(self.config)
             
-            self.print("✅ Autonomous trading scheduler stopped", style="green")
+            self.print("Autonomous trading scheduler stopped", style="green")
         except Exception as e:
-            self.print(f"❌ Error stopping scheduler: {e}", style="red")
+            self.print(f"Error stopping scheduler: {e}", style="red")
         
         return True
     
@@ -274,12 +354,12 @@ class AutonomousCLI:
         
         if subcmd == "status":
             stats = queue.get_stats()
-            self.print(f"📊 Queue: {stats['valid']} valid / {stats['total_pending']} total / {stats['expired']} expired")
+            self.print(f"Queue: {stats['valid']} valid / {stats['total_pending']} total / {stats['expired']} expired")
             
         elif subcmd == "list":
             pending = queue.get_pending()
             if not pending:
-                self.print("📭 Queue is empty")
+                self.print("Queue is empty")
                 return True
             
             table = Table(title=f"Pending Signals ({len(pending)})")
@@ -309,13 +389,13 @@ class AutonomousCLI:
                 self.print("Queue already empty")
                 return True
             
-            self.print(f"⚠️  This will clear {len(pending)} signals. Type 'yes' to confirm:")
+            self.print(f"This will clear {len(pending)} signals. Type 'yes' to confirm:")
             confirm = input("> ")
             
             if confirm.lower() == "yes":
                 queue._pending = []
                 queue._save_queue()
-                self.print(f"✅ Cleared {len(pending)} signals from queue", style="green")
+                self.print(f"Cleared {len(pending)} signals from queue", style="green")
             else:
                 self.print("Cancelled")
         
@@ -326,7 +406,7 @@ class AutonomousCLI:
     
     def _cmd_research(self, args: List[str]) -> bool:
         """Trigger research phase."""
-        self.print("🔬 Running research phase...", style="cyan")
+        self.print("Running research phase...", style="cyan")
         self.print("   (This may take several minutes)")
         
         try:
@@ -335,7 +415,7 @@ class AutonomousCLI:
             agent = ResearchAgent(self.config)
             signals = agent.run_research()
             
-            self.print(f"✅ Research complete: {len(signals)} signals queued", style="green")
+            self.print(f"Research complete: {len(signals)} signals queued", style="green")
             
             if signals:
                 table = Table(title="Queued Signals")
@@ -352,11 +432,11 @@ class AutonomousCLI:
                     self.print(f"... and {len(signals) - 10} more")
         
         except ImportError as e:
-            self.print("❌ Autonomous trader module not found", style="red")
+            self.print("Autonomous trader module not found", style="red")
             self.print("   Make sure you're in the project root directory")
             self.print(f"   Error: {e}")
         except Exception as e:
-            self.print(f"❌ Research failed: {e}", style="red")
+            self.print(f"Research failed: {e}", style="red")
             import traceback
             traceback.print_exc()
         
@@ -365,11 +445,11 @@ class AutonomousCLI:
     def _cmd_execute(self, args: List[str]) -> bool:
         """Trigger execution phase."""
         if not is_market_open() and self.config.get("market_hours_only"):
-            self.print("⚠️  Market is closed", style="yellow")
+            self.print("Market is closed", style="yellow")
             self.print("   Set market_hours_only=false to execute anyway")
             return True
         
-        self.print("💼 Running execution phase...", style="cyan")
+        self.print("Running execution phase...", style="cyan")
         
         try:
             from autonomous_trader.src.scheduler import MarketScheduler
@@ -377,13 +457,13 @@ class AutonomousCLI:
             scheduler = MarketScheduler(self.config)
             scheduler.run_execution_job()
             
-            self.print("✅ Execution cycle complete", style="green")
+            self.print("Execution cycle complete", style="green")
             
         except ImportError as e:
-            self.print("❌ Autonomous trader module not found", style="red")
+            self.print("Autonomous trader module not found", style="red")
             self.print("   Make sure you're in the project root directory")
         except Exception as e:
-            self.print(f"❌ Execution failed: {e}", style="red")
+            self.print(f"Execution failed: {e}", style="red")
             import traceback
             traceback.print_exc()
         
@@ -403,7 +483,7 @@ class AutonomousCLI:
             positions = api.list_positions()
             
             if not positions:
-                self.print("📭 No open positions")
+                self.print("No open positions")
                 return True
             
             table = Table(title="Current Positions")
@@ -436,9 +516,9 @@ class AutonomousCLI:
             console.print(table)
             
         except ImportError:
-            self.print("❌ alpaca-trade-api not installed", style="red")
+            self.print("alpaca-trade-api not installed", style="red")
         except Exception as e:
-            self.print(f"❌ Failed to fetch positions: {e}", style="red")
+            self.print(f"Failed to fetch positions: {e}", style="red")
         
         return True
     
@@ -473,9 +553,9 @@ class AutonomousCLI:
         for key, value in updates.items():
             if key in self.config:
                 self.config[key] = value
-                self.print(f"✅ Set {key} = {value}")
+                self.print(f"Set {key} = {value}")
             else:
-                self.print(f"⚠️  Unknown setting: {key}", style="yellow")
+                self.print(f"Unknown setting: {key}", style="yellow")
         
         save_config(self.config)
         return True
