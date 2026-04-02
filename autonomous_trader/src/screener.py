@@ -24,7 +24,18 @@ class StockScreener:
     
     def _get_sp500_tickers(self) -> list:
         try:
-            tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+            import requests
+            from io import StringIO
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            response = requests.get(
+                "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                headers=headers,
+                timeout=30
+            )
+            tables = pd.read_html(StringIO(response.text))
             tickers = tables[0]["Symbol"].tolist()
             return [t.replace(".", "-") for t in tickers]
         except Exception as e:
@@ -33,7 +44,18 @@ class StockScreener:
     
     def _get_nasdaq100_tickers(self) -> list:
         try:
-            tables = pd.read_html("https://en.wikipedia.org/wiki/NASDAQ-100")
+            import requests
+            from io import StringIO
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            response = requests.get(
+                "https://en.wikipedia.org/wiki/NASDAQ-100",
+                headers=headers,
+                timeout=30
+            )
+            tables = pd.read_html(StringIO(response.text))
             tickers = tables[4]["Ticker"].tolist()
             return [t.replace(".", "-") for t in tickers]
         except Exception as e:
