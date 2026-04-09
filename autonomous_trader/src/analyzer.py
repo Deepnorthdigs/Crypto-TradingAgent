@@ -234,12 +234,30 @@ Provide your analysis now."""
     def _call_direct_llm(self, symbol: str, prompt: str) -> Optional[dict]:
         model = self.analysis_config.get("model", "openrouter/stepfun/step-3.5-flash:free")
         
-        if "openrouter" in model.lower():
+        model_lower = model.lower()
+        
+        if "openrouter" in model_lower:
             return self._call_openrouter(symbol, prompt, model)
-        elif "anthropic" in model.lower() or "claude" in model.lower():
+        elif "anthropic" in model_lower or "claude" in model_lower:
             return self._call_anthropic(symbol, prompt, model)
-        elif "openai" in model.lower() or "gpt" in model.lower():
+        elif "openai" in model_lower or "gpt" in model_lower:
             return self._call_openai(symbol, prompt, model)
+        elif "google" in model_lower or "gemini" in model_lower:
+            return self._call_google(symbol, prompt, model)
+        elif "xai" in model_lower or "grok" in model_lower:
+            return self._call_xai(symbol, prompt, model)
+        elif "mistral" in model_lower:
+            return self._call_mistral(symbol, prompt, model)
+        elif "cohere" in model_lower:
+            return self._call_cohere(symbol, prompt, model)
+        elif "meta" in model_lower or "llama" in model_lower:
+            return self._call_meta(symbol, prompt, model)
+        elif "deepseek" in model_lower:
+            return self._call_deepseek(symbol, prompt, model)
+        elif "together" in model_lower:
+            return self._call_together(symbol, prompt, model)
+        elif "azure" in model_lower:
+            return self._call_azure(symbol, prompt, model)
         else:
             return self._call_openrouter(symbol, prompt, model)
     
@@ -328,6 +346,268 @@ Provide your analysis now."""
             
         except Exception as e:
             logger.error(f"OpenAI call failed for {symbol}: {e}")
+            return None
+    
+    def _call_google(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            import google.genai as genai
+            
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                logger.error("GOOGLE_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "gemini-2.0-flash"
+            
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            
+            output = response.text
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Google/Gemini call failed for {symbol}: {e}")
+            return None
+    
+    def _call_xai(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("XAI_API_KEY")
+            if not api_key:
+                logger.error("XAI_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "grok-2"
+            
+            response = requests.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"xAI API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"xAI/Grok call failed for {symbol}: {e}")
+            return None
+    
+    def _call_mistral(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("MISTRAL_API_KEY")
+            if not api_key:
+                logger.error("MISTRAL_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "mistral-large-latest"
+            
+            response = requests.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Mistral API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Mistral call failed for {symbol}: {e}")
+            return None
+    
+    def _call_cohere(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            import cohere
+            
+            api_key = os.getenv("COHERE_API_KEY")
+            if not api_key:
+                logger.error("COHERE_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "command-r-plus"
+            
+            client = cohere.Client(api_key=api_key)
+            response = client.chat(
+                model=model_name,
+                message=prompt,
+                max_tokens=2048,
+            )
+            
+            output = response.text
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Cohere call failed for {symbol}: {e}")
+            return None
+    
+    def _call_meta(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("META_API_KEY")
+            if not api_key:
+                logger.error("META_API_KEY not set (use OPENROUTER for Meta/Llama models)")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "llama-3.3-70b-instruct"
+            
+            response = requests.post(
+                "https://api.meta.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Meta API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Meta/Llama call failed for {symbol}: {e}")
+            return None
+    
+    def _call_deepseek(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("DEEPSEEK_API_KEY")
+            if not api_key:
+                logger.error("DEEPSEEK_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "deepseek-chat"
+            
+            response = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"DeepSeek API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"DeepSeek call failed for {symbol}: {e}")
+            return None
+    
+    def _call_together(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("TOGETHER_API_KEY")
+            if not api_key:
+                logger.error("TOGETHER_API_KEY not set")
+                return None
+            
+            model_name = model.split("/")[-1] if "/" in model else "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+            
+            response = requests.post(
+                "https://api.together.xyz/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Together AI API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Together AI call failed for {symbol}: {e}")
+            return None
+    
+    def _call_azure(self, symbol: str, prompt: str, model: str) -> Optional[dict]:
+        try:
+            api_key = os.getenv("AZURE_OPENAI_API_KEY")
+            endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+            
+            if not api_key or not endpoint:
+                logger.error("AZURE_OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT not set")
+                return None
+            
+            deployment_name = model.split("/")[-1] if "/" in model else "gpt-4"
+            
+            url = f"{endpoint}/openai/deployments/{deployment_name}/chat/completions?api-version=2024-02-15"
+            
+            response = requests.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                },
+                timeout=120,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Azure API error: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            output = data["choices"][0]["message"]["content"]
+            return self._extract_json(output)
+            
+        except Exception as e:
+            logger.error(f"Azure OpenAI call failed for {symbol}: {e}")
             return None
     
     def _validate_signal(self, signal: dict) -> bool:

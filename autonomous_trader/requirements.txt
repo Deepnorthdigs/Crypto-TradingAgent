@@ -10,3 +10,7 @@ ccxt>=4.0.0
 ta>=0.10.0
 requests-cache>=1.1.0
 praw>=7.7.0
+anthropic>=0.18.0
+openai>=1.12.0
+google-generativeai>=0.8.0
+cohere>=5.0.0
