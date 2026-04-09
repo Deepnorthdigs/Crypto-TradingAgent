@@ -100,8 +100,7 @@ autonomous_trader/
 ```bash
 # Clone and enter directory
 git clone https://github.com/Deepnorthdigs/Crypto-TradingAgent.git
-cd Autonomous-TradingAgents
-
+cd Crypto-TradingAgent
 # Create virtual environment
 conda create -n crypto-trading python=3.11
 conda activate crypto-trading
