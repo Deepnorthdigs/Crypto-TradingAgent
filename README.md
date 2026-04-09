@@ -99,7 +99,7 @@ autonomous_trader/
 
 ```bash
 # Clone and enter directory
-git clone https://github.com/YOUR_USERNAME/Autonomous-TradingAgents.git
+git clone https://github.com/Deepnorthdigs/Crypto-TradingAgent.git
 cd Autonomous-TradingAgents
 
 # Create virtual environment
