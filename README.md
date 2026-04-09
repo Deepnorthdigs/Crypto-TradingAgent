@@ -1,162 +1,138 @@
-# Autonomous Trading System
+# Autonomous Crypto Trading System
 
-A fully autonomous stock trading system that screens stocks, analyzes them with TradingAgents, queues trade signals, and executes trades via Alpaca paper trading API.
+An autonomous cryptocurrency swing/position trading system that discovers trending altcoins, performs deep multi-layer analysis, and executes trades via Bybit.
 
-This project extends [TradingAgents](https://github.com/TauricResearch/TradingAgents) with automation capabilities for fully autonomous operation.
+## Overview
 
-## Features
+This forked project adapts the original autonomous trading system from **stock trading** to **crypto swing trading** with the following key characteristics:
 
-### Core Components
+- **Trading Style**: Swing/Position trading (1 week to 2 month holding periods)
+- **Target Assets**: Altcoins (not just majors) with market cap >$10M
+- **Exchange**: Bybit (testnet for paper trading)
+- **Market**: Spot trading only (no leverage, no futures)
 
-| Module | Description |
-|--------|-------------|
-| **Screener** | Stock screening using yfinance with customizable filters (market cap, volume, sector, price range) |
-| **Analyzer** | Integration with TradingAgents for deep stock analysis |
-| **Queue** | Signal queue with persistence, deduplication, and expiry management |
-| **Executor** | Alpaca API integration with bracket orders (entry, take-profit, stop-loss) |
-| **Risk Manager** | Position sizing, sector concentration, and max position limits |
-| **Portfolio Tracker** | Real-time position tracking with sector exposure monitoring |
-| **Monitor** | Performance logging, metrics calculation, and alerts |
-| **Scheduler** | Market-hours-aware scheduler for research and execution phases |
+## Key Features
 
-### Key Capabilities
+### Discovery & Screening
+- Multi-source coin discovery: CoinGecko, CoinMarketCap, CryptoPanic
+- 7-day and 30-day momentum scoring
+- Volume growth detection (7d MA vs 30d MA)
+- Trust score filtering (skip coins with score < 3)
+- Token unlock screening (>5% circulating supply = automatic skip)
+- 15-30 minute API response caching
 
-- **Automated Research Phase**: Screens stocks, runs TradingAgents analysis, queues actionable signals
-- **Queue-Based Execution**: Signals persist across sessions, expire after configurable days, deduplicate by ticker
-- **Bracket Orders**: Each signal executes with take-profit and stop-loss automatically
-- **Risk Management**: Per-position limits, sector concentration checks, max daily signals
-- **Market Hours Only**: Respects trading hours (9:30 AM - 4:00 PM ET, weekdays)
-- **Dry Run Mode**: Test without real trades
-- **Discord Alerts**: Optional webhook notifications for trades and errors
-- **Configurable**: YAML config, environment variable overrides
+### Multi-Layer Analysis
+- **Technical Analysis** (25% weight): RSI, MACD, Bollinger Bands on 4h and 1D timeframes
+- **Sentiment Analysis** (25% weight): 7-14 day news and social trends
+- **Fundamentals** (30% weight): Market cap, supply metrics, on-chain data
+- **Project Quality** (20% weight): Team, audits, GitHub activity, competitive landscape
 
-### CLI Commands
+### BTC Regime Filter
+- BUY signals automatically suppressed if BTC RSI < 35
+- BUY signals suppressed during confirmed BTC weekly downtrends
+
+### Execution & Risk Management
+- Manual bracket orders (entry + 2 take-profits + stop-loss)
+- Partial take-profit: 50% at TP1 (25%), 50% at TP2 (50%)
+- Stop loss: 8% (wider for swing trading)
+- Slippage tolerance check (skip if spread > 1% for small caps)
+- Quiet hours gate (2am-5am UTC) for new entries only
+- 60-minute execution check interval
+
+### Category Concentration Limits
+- Max 30% in DeFi
+- Max 30% in L1s
+- Max 30% in L2s
+- Max 20% in memecoins (configurable)
+- Max 6 open positions
+
+### Monitoring & Alerts
+- Holding period tracking (alert at 45 days, max 60 days)
+- Discord webhook alerts for:
+  - Take profit triggers
+  - Holding period warnings
+  - Trade executions
+  - Stop loss hits
+
+## Architecture
 
 ```
-start/stop         Control the scheduler
-status             Show system status
-queue status/list  Queue management
-research           Trigger research phase
-execute            Trigger execution phase
-positions          View Alpaca positions
-config             Show/update configuration
-dashboard          Comprehensive status view
+autonomous_trader/
+├── config.yaml              # All configuration
+├── src/
+│   ├── screener.py         # Crypto coin discovery (CoinGecko/CoinMarketCap)
+│   ├── market_data.py      # CCXT/Bybit data fetching + TA indicators
+│   ├── analyzer.py         # LLM-powered crypto analysis
+│   ├── executor.py         # CCXT/Bybit trade execution
+│   ├── risk.py             # Category concentration, holding limits
+│   ├── queue.py            # Signal queue with crypto-specific fields
+│   ├── monitor.py          # Performance logging, alerts
+│   ├── portfolio.py        # Position tracking
+│   ├── scheduler.py        # Market-aware scheduler
+│   ├── researcher.py        # Research pipeline orchestration
+│   └── logger.py           # Logging setup
+├── templates/
+│   └── crypto_analysis_prompt.md  # LLM analysis prompt
+├── scripts/
+│   ├── research.py         # Research phase (screening + analysis)
+│   ├── execute.py          # Execution phase
+│   └── scheduler.py        # Full scheduler loop
+└── tests/                  # Unit tests (42 passing)
 ```
 
 ## Installation
 
 ### Prerequisites
-
-- Python 3.13+
-- [Alpaca paper trading account](https://alpaca.markets/) (free)
-- API keys for at least one LLM provider
+- Python 3.11+
+- Bybit testnet account (free)
+- LLM API key (OpenRouter recommended, free tier available)
 
 ### API Keys Required
 
 | Service | Purpose | Required | Get Key At |
 |---------|---------|----------|------------|
-| **OpenRouter** | LLM for analysis (default, free tier available) | Yes | [openrouter.ai](https://openrouter.ai/) |
-| **Alpaca** | Paper trading execution | Yes | [alpaca.markets](https://app.alpaca.markets/) |
-
-Alternative LLM providers (optional - only if not using OpenRouter):
-- OpenAI (GPT-4)
-- Google (Gemini)
-- Anthropic (Claude)
-- xAI (Grok)
+| **OpenRouter** | LLM analysis | Yes | [openrouter.ai](https://openrouter.ai/) |
+| **CoinGecko** | Market data | Free tier | [coingecko.com](https://www.coingecko.com/) |
+| **Bybit** | Trading execution | Yes (testnet) | [bybit-testnet](https://testnet.bybit.com/) |
 
 ### Setup
 
-1. **Clone the repository:**
 ```bash
-git clone https://github.com/Deepnorthdigs/Autonomous-TradingAgents.git
+# Clone and enter directory
+git clone https://github.com/YOUR_USERNAME/Autonomous-TradingAgents.git
 cd Autonomous-TradingAgents
-```
 
-2. **Create and activate a virtual environment:**
-```bash
-conda create -n autonomous-trading python=3.13
-conda activate autonomous-trading
-```
+# Create virtual environment
+conda create -n crypto-trading python=3.11
+conda activate crypto-trading
 
-3. **Install base dependencies:**
-```bash
-pip install .
-```
-
-4. **Install autonomous trading dependencies:**
-```bash
+# Install dependencies
 pip install -r autonomous_trader/requirements.txt
-```
 
-5. **Configure API keys:**
-
-Copy the example env file and fill in your keys:
-```bash
+# Configure API keys
 cp .env.example .env
 ```
 
-Then edit `.env` with your API keys:
+Edit `.env` with your API keys:
 ```bash
-# Required: OpenRouter for LLM analysis (free tier available)
+# LLM Analysis (required)
 OPENROUTER_API_KEY=sk-or-v1-...
 
-# Required: Alpaca for paper trading
-ALPACA_PAPER_KEY=PKXXXXXXXXXX
-ALPACA_PAPER_SECRET=SecXXXXXXXXXX
+# Bybit Testnet (required for trading)
+BYBIT_API_KEY=your_testnet_key
+BYBIT_API_SECRET=your_testnet_secret
 ```
 
-Or set environment variables directly:
-```bash
-export OPENROUTER_API_KEY=sk-or-v1-...
-export ALPACA_PAPER_KEY=your-paper-api-key
-export ALPACA_PAPER_SECRET=your-paper-api-secret
-```
-
-Or edit `autonomous_trader/config.yaml` directly:
+Or edit `autonomous_trader/config.yaml`:
 ```yaml
-alpaca:
-  paper_key: "your-paper-api-key"
-  paper_secret: "your-paper-api-secret"
-  base_url: "https://paper-api.alpaca.markets"
+exchange:
+  name: "bybit"
+  testnet: true
+  api_key: ""
+  api_secret: ""
 
-analysis:
-  model: "openrouter/stepfun/step-3.5-flash:free"
-```
-
-analysis:
-  model: "openrouter/stepfun/step-3.5-flash:free"  # Default: free OpenRouter model
-```
-
-## Usage
-
-### Interactive CLI
-
-```bash
-python -m cli.autonomous
-```
-
-### Command Examples
-
-```bash
-autonomous> start              # Start scheduler
-autonomous> research          # Run research phase
-autonomous> queue list        # View signals
-autonomous> execute           # Execute trades
-autonomous> config dry_run=false  # Enable live trading
-autonomous> dashboard        # Full status view
-```
-
-### Standalone Scripts
-
-```bash
-# Research phase only (screens stocks, analyzes, queues signals)
-python autonomous_trader/scripts/research.py
-
-# Execution phase only (executes queued signals)
-python autonomous_trader/scripts/execute.py
-
-# Full scheduler (research + execution loop)
-python autonomous_trader/scripts/scheduler.py
+api_keys:
+  coingecko: ""  # Optional for higher rate limits
 ```
 
 ## Configuration
@@ -164,79 +140,87 @@ python autonomous_trader/scripts/scheduler.py
 Edit `autonomous_trader/config.yaml`:
 
 ```yaml
-alpaca:
-  key: "..."
-  secret: "..."
-  url: "https://paper-api.alpaca.markets"
+# Exchange
+exchange:
+  name: "bybit"
+  testnet: true  # Paper trading first!
 
+# Screening
 screener:
-  min_market_cap: 500_000_000
-  min_volume: 500_000
-  excluded_sectors: ["Financial Services", "Real Estate"]
-  max_results: 10
-  top_n: 5
+  min_market_cap: 10_000_000   # $10M minimum
+  min_age_days: 14             # At least 2 weeks old
+  momentum_window_days: 7       # 7d momentum as primary filter
 
+# Analysis weights
+analysis:
+  weights:
+    technical: 0.25
+    sentiment: 0.25
+    fundamentals: 0.30
+    project_quality: 0.20
+  btc_rsi_filter: 35           # Suppress BUY if BTC RSI < 35
+
+# Trading parameters
 trading:
-  dry_run: true
-  max_position_value: 1000
-  max_position_pct: 0.02
-  max_per_sector: 0.20
-  stop_loss_pct: 0.05
-  take_profit_pct: 0.15
-  max_signals_per_day: 10
-  signal_expiry_days: 2
+  dry_run: true                  # Start with paper trading
+  max_positions: 6               # Fewer positions for swing trading
+  position_size_pct: 0.05        # 5% per position
+  stop_loss_pct: 0.08            # 8% stop loss
+  take_profit_pct_1: 0.25       # First TP at 25%
+  take_profit_pct_2: 0.50        # Second TP at 50%
+  quiet_hours_start: "02:00"     # UTC
+  quiet_hours_end: "05:00"
 
-research:
-  research_time: "18:00"
-  min_confidence: 0.65
-  auto_queue_signals: true
+# Risk limits
+risk:
+  max_holding_days: 60           # Exit by day 60
+  holding_alert_days: 45         # Alert at day 45
+  max_defi_exposure_pct: 0.30
+  max_l1_exposure_pct: 0.30
+  max_l2_exposure_pct: 0.30
+  max_memecoin_exposure_pct: 0.20
 
+# Execution
 execution:
-  market_hours_only: true
-  execution_check_interval: 15
-  delay_after_open: 5
-  notify_on_trade: true
-  notify_on_error: true
-  discord_webhook: ""
+  signal_expiry_days: 7          # Signals valid 1 week
+  check_interval_minutes: 60      # Not high frequency
 
-logging:
-  level: "INFO"
-  log_dir: "autonomous_trader/logs"
+# Discord alerts
+alerts:
+  enabled: true
+  discord_webhook: "https://discord.com/api/webhooks/..."
+  notify_on: ["trade_executed", "position_closed", "stop_loss_hit", "holding_alert", "take_profit_1"]
 ```
 
-Environment variable overrides (prefix with `HERMES_AUTO_`):
+## Usage
+
+### Interactive CLI
 ```bash
-export HERMES_AUTO_DRY_RUN=false
-export HERMES_AUTO_RESEARCH_TIME="17:00"
-export HERMES_AUTO_MIN_CONFIDENCE=0.70
+python -m cli.autonomous
 ```
 
-## Architecture
+### Standalone Scripts
 
+```bash
+# Research phase only (screen + analyze + queue)
+python autonomous_trader/scripts/research.py
+
+# Execution phase only (execute queued signals)
+python autonomous_trader/scripts/execute.py
+
+# Full scheduler (runs research + execution on schedule)
+python autonomous_trader/scripts/scheduler.py
 ```
-autonomous_trader/
-├── config.yaml              # Configuration
-├── src/
-│   ├── logger.py           # Logging setup
-│   ├── screener.py         # Stock screening (yfinance)
-│   ├── analyzer.py         # TradingAgents integration
-│   ├── queue.py            # Signal queue with persistence
-│   ├── executor.py         # Alpaca trade execution
-│   ├── risk.py             # Risk management checks
-│   ├── portfolio.py        # Position tracking
-│   ├── monitor.py          # Performance logging
-│   ├── scheduler.py         # Market-aware scheduler
-│   └── researcher.py        # Research agent
-├── scripts/
-│   ├── research.py          # Research phase script
-│   ├── execute.py           # Execution phase script
-│   ├── scheduler.py         # Master orchestrator
-│   └── run_daily.py         # Daily workflow
-├── templates/
-│   └── analysis_prompt.md   # Prompt template
-├── data/                    # Signal persistence (created at runtime)
-├── logs/                    # Log files (created at runtime)
-└── tests/                   # Unit tests (39 passing)
+
+### Command Examples
+```
+autonomous> start              # Start scheduler
+autonomous> research          # Run research phase
+autonomous> queue list        # View signals
+autonomous> execute          # Execute trades
+autonomous> positions        # View open positions
+autonomous> config dry_run=false  # Enable live trading
+autonomous> dashboard        # Full status view
 ```
 
 ## Testing
@@ -246,35 +230,56 @@ cd autonomous_trader
 python -m pytest tests/ -v
 ```
 
-## Credits and Acknowledgments
+Current test suite: **42 passing tests**
 
-This project is built upon and extends [TradingAgents](https://github.com/TauricResearch/TradingAgents) by [Tauric Research](https://tauric.ai/).
+## Swing Trading Parameters
 
-### TradingAgents Citation
+This system is designed for **swing trading**, not scalping or day trading:
 
-If you use TradingAgents in your research, please cite:
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| Holding Period | 1 week - 2 months | Short timeframes too expensive with trading fees |
+| Stop Loss | 8% | Wider than day trading to avoid volatility shakes |
+| Take Profit 1 | 25% | Partial exit for risk management |
+| Take Profit 2 | 50% | Full exit target |
+| Max Positions | 6 | Focus on conviction, not quantity |
+| Execution Interval | 60 min | Not high frequency |
+| Signal Expiry | 7 days | Longer than stocks due to holding period |
 
-```
-@misc{xiao2025tradingagentsmultiagentsllmfinancial,
-      title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
-      author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
-      year={2025},
-      eprint={2412.20138},
-      archivePrefix={arXiv},
-      primaryClass={q-fin.TR},
-      url={https://arxiv.org/abs/2412.20138}, 
-}
-```
+## Risk Warnings
 
-### Technologies Used
+> **IMPORTANT**: This is a high-risk experimental system.
 
-- [TradingAgents](https://github.com/TauricResearch/TradingAgents) - Multi-agent LLM trading framework
-- [yfinance](https://github.com/ranaroussi/yfinance) - Yahoo Finance data
-- [Alpaca](https://alpaca.markets/) - Commission-free stock trading API
+- Cryptocurrencies are highly volatile
+- Swing trading with multi-week holds exposes capital to drawdowns
+- Past performance does not guarantee future results
+- Always start with **paper trading** (dry_run: true)
+- Never invest more than you can afford to lose
+- Token unlocks can cause sudden price drops
+- Rug pulls and scams are common in altcoin space
+
+## Project Structure
+
+This project is forked from [TradingAgents](https://github.com/TauricResearch/TradingAgents) and adapted for cryptocurrency swing trading. The original project used:
+- Alpaca API for US stock trading
+- yfinance for market data
+- US market hours scheduling
+
+This fork replaces these with:
+- CCXT/Bybit for crypto trading
+- CoinGecko/CoinMarketCap for market data
+- 24/7 crypto market operation
+
+## Technologies Used
+
+- [CCXT](https://github.com/ccxt/ccxt) - Crypto exchange integration
+- [Bybit](https://www.bybit.com/) - Spot trading exchange
+- [CoinGecko](https://www.coingecko.com/) - Cryptocurrency data
+- [Pandas](https://pandas.pydata.org/) - Data analysis
+- [TA-Lib/TA](https://github.com/mrjbq7/ta-lib) - Technical indicators
 - [LangGraph](https://langchain-ai.github.io/langgraph/) - Agent orchestration
-- [Typer](https://typer.tiangolo.com/) - CLI framework
 - [Rich](https://rich.readthedocs.io/) - Terminal formatting
 
 ## Disclaimer
 
-> This software is for educational and research purposes. Trading involves substantial risk of loss. Past performance does not guarantee future results. The autonomous trading system is experimental and not intended as financial advice. Always use paper trading to test strategies before using real capital.
+> This software is for educational and research purposes only. Cryptocurrency trading involves substantial risk of loss, including the potential for total loss of investment. The autonomous trading system is experimental and not intended as financial advice. Features like stopping at 45 days, max holding period of 60 days, and category concentration limits are risk management tools but do not guarantee profits or prevent losses. Always use paper trading to test strategies before using real capital. The cryptocurrency market operates 24/7 and is highly volatile compared to traditional markets.

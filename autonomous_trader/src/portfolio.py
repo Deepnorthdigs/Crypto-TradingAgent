@@ -110,6 +110,20 @@ class PositionTracker:
             exposure = {k: v / total_value for k, v in exposure.items()}
         return exposure
     
+    def get_category_exposure(self) -> dict:
+        """Get exposure by crypto category (DeFi, L1, L2, memecoin, etc.)."""
+        exposure = {}
+        total_value = 0.0
+        for pos in self.get_positions():
+            category = pos.get("category", "Other")
+            value = pos.get("market_value", 0.0)
+            exposure[category] = exposure.get(category, 0.0) + value
+            total_value += value
+        
+        if total_value > 0:
+            exposure = {k: v / total_value for k, v in exposure.items()}
+        return exposure
+    
     def get_total_position_value(self) -> float:
         return sum(p.get("market_value", 0.0) for p in self.get_positions())
     

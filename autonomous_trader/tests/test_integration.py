@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import os
+from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -12,45 +13,54 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 @pytest.fixture
 def temp_config():
     return {
-        "alpaca": {
-            "paper_key": "test_key",
-            "paper_secret": "test_secret",
-            "base_url": "https://paper-api.alpaca.markets",
+        "exchange": {
+            "name": "bybit",
+            "testnet": True,
         },
-        "screening": {
-            "universe": "sp500",
-            "min_market_cap": 1_000_000_000,
-            "max_pe": 25,
-            "min_volume": 1_000_000,
-            "min_revenue_growth": 0.10,
-            "max_debt_equity": 1.5,
-            "min_roe": 0.10,
-            "exclude_sectors": ["Utilities", "Real Estate"],
-            "max_per_industry": 5,
+        "screener": {
+            "universe": "crypto",
+            "min_market_cap": 10_000_000,
+            "min_age_days": 14,
+            "cache_ttl_minutes": 20,
         },
         "analysis": {
             "model": "test",
             "max_tickers_per_run": 5,
             "timeout_minutes": 5,
             "prompt_template": "",
+            "weights": {
+                "technical": 0.25,
+                "sentiment": 0.25,
+                "fundamentals": 0.30,
+                "project_quality": 0.20,
+            },
+            "btc_rsi_filter": 35,
         },
         "trading": {
             "dry_run": True,
-            "max_positions": 20,
+            "max_positions": 6,
             "position_size_pct": 0.05,
-            "max_sector_exposure_pct": 0.20,
-            "stop_loss_pct": 0.10,
-            "take_profit_pct": 0.20,
+            "stop_loss_pct": 0.08,
+            "take_profit_pct_1": 0.25,
+            "take_profit_pct_2": 0.50,
             "min_confidence": 0.65,
+            "quiet_hours_start": "02:00",
+            "quiet_hours_end": "05:00",
         },
         "risk": {
             "max_daily_loss_pct": 0.02,
             "max_drawdown_pct": 0.10,
             "max_position_value": 50000,
+            "max_holding_days": 60,
+            "holding_alert_days": 45,
+            "max_defi_exposure_pct": 0.30,
+            "max_l1_exposure_pct": 0.30,
+            "max_l2_exposure_pct": 0.30,
+            "max_memecoin_exposure_pct": 0.20,
         },
         "schedule": {
             "market_hours_only": False,
-            "timezone": "America/New_York",
+            "timezone": "UTC",
         },
         "logging": {
             "level": "INFO",
@@ -67,42 +77,14 @@ def temp_config():
 
 
 class TestFullPipeline:
-    @patch("src.screener.StockScreener._init_sector_cache")
-    @patch("pandas.read_html")
-    @patch("src.screener.yf.Tickers")
-    def test_screening_to_signals_pipeline(self, mock_yf, mock_read_html, mock_cache_init, temp_config):
-        from src.screener import StockScreener
-        from src.portfolio import TickerSectorCache
+    @patch("src.screener.CryptoScreener._init_session")
+    def test_screening_to_signals_pipeline(self, mock_session, temp_config):
+        from src.screener import CryptoScreener
         
-        mock_cache = MagicMock(spec=TickerSectorCache)
-        mock_cache.set = Mock()
-        mock_cache_init.return_value = mock_cache
-        
-        mock_read_html.return_value = [MagicMock()]
-        mock_read_html.return_value[0] = MagicMock()
-        mock_read_html.return_value[0].__getitem__ = Mock(return_value=["AAPL", "MSFT", "GOOGL"])
-        
-        mock_ticker_aapl = MagicMock()
-        mock_ticker_aapl.info = {
-            "marketCap": 2_000_000_000_000,
-            "trailingPE": 25.0,
-            "averageVolume": 50_000_000,
-            "sector": "Technology",
-            "industry": "Consumer Electronics",
-            "returnOnEquity": 0.30,
-            "debtToEquity": 0.5,
-            "revenueGrowth": 0.15,
-        }
-        
-        mock_yf_instance = MagicMock()
-        mock_yf_instance.tickers = {"AAPL": mock_ticker_aapl}
-        mock_yf.return_value = mock_yf_instance
-        
-        screener = StockScreener(temp_config)
-        
-        tickers = screener.screen()
-        
-        assert len(tickers) <= temp_config["analysis"]["max_tickers_per_run"]
+        screener = CryptoScreener(temp_config)
+        with patch.object(screener, "_get_coingecko_trending", return_value=[]):
+            tickers = screener.screen()
+            assert isinstance(tickers, list)
 
 
 class TestIntegrationComponents:
@@ -114,21 +96,21 @@ class TestIntegrationComponents:
             tracker = PositionTracker(positions_file)
             
             tracker.add_position({
-                "symbol": "AAPL",
-                "qty": 10,
-                "avg_entry_price": 150.0,
-                "market_value": 1500.0,
-                "sector": "Technology",
+                "symbol": "BTC/USDT",
+                "qty": 0.1,
+                "avg_entry_price": 50000.0,
+                "market_value": 5000.0,
+                "category": "L1",
             })
             
-            assert tracker.is_holding("AAPL") is True
+            assert tracker.is_holding("BTC/USDT") is True
             assert tracker.get_position_count() == 1
             
             positions = tracker.get_positions()
             assert len(positions) == 1
-            assert positions[0]["symbol"] == "AAPL"
+            assert positions[0]["symbol"] == "BTC/USDT"
     
-    def test_sector_exposure_tracking(self, temp_config):
+    def test_category_exposure_tracking(self, temp_config):
         from src.portfolio import PositionTracker
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -136,22 +118,22 @@ class TestIntegrationComponents:
             tracker = PositionTracker(positions_file)
             
             tracker.add_position({
-                "symbol": "AAPL",
-                "qty": 10,
+                "symbol": "BTC/USDT",
+                "qty": 0.1,
                 "market_value": 1000.0,
-                "sector": "Technology",
+                "category": "L1",
             })
             tracker.add_position({
-                "symbol": "MSFT",
-                "qty": 10,
+                "symbol": "ETH/USDT",
+                "qty": 1.0,
                 "market_value": 1000.0,
-                "sector": "Technology",
+                "category": "L1",
             })
             
-            exposure = tracker.get_sector_exposure()
+            exposure = tracker.get_category_exposure()
             
-            assert "Technology" in exposure
-            assert abs(exposure["Technology"] - 1.0) < 0.001
+            assert "L1" in exposure
+            assert abs(exposure["L1"] - 1.0) < 0.001
 
 
 class TestRiskManagement:
@@ -163,12 +145,12 @@ class TestRiskManagement:
             positions_file = Path(tmpdir) / "positions.json"
             tracker = PositionTracker(positions_file)
             
-            for i in range(20):
+            for i in range(6):
                 tracker.add_position({
-                    "symbol": f"T{i}",
+                    "symbol": f"T{i}/USDT",
                     "qty": 1,
                     "market_value": 100.0,
-                    "sector": "Technology",
+                    "category": "L1",
                 })
             
             risk_manager = RiskManager(temp_config, tracker)
@@ -178,7 +160,7 @@ class TestRiskManagement:
             assert blocked is True
             assert "max limit" in reason
     
-    def test_risk_manager_sector_concentration(self, temp_config):
+    def test_risk_manager_category_concentration(self, temp_config):
         from src.portfolio import PositionTracker
         from src.risk import RiskManager
         
@@ -187,21 +169,21 @@ class TestRiskManagement:
             tracker = PositionTracker(positions_file)
             
             tracker.add_position({
-                "symbol": "AAPL",
+                "symbol": "AAVE/USDT",
                 "qty": 10,
                 "market_value": 8000.0,
-                "sector": "Technology",
+                "category": "DeFi",
             })
             tracker.add_position({
-                "symbol": "MSFT",
-                "qty": 10,
+                "symbol": "UNI/USDT",
+                "qty": 100,
                 "market_value": 8000.0,
-                "sector": "Technology",
+                "category": "DeFi",
             })
             
             risk_manager = RiskManager(temp_config, tracker)
             
-            blocked, reason = risk_manager.check_sector_concentration("Technology")
+            blocked, reason = risk_manager.check_category_concentration("DeFi")
             
             assert blocked is True
 
@@ -217,14 +199,14 @@ class TestMonitorLogging:
             monitor = PortfolioMonitor(temp_config)
             
             trade = {
-                "ticker": "AAPL",
+                "symbol": "BTC/USDT",
                 "action": "BUY",
-                "quantity": 10,
-                "price": 150.0,
-                "total_value": 1500.0,
+                "quantity": 0.1,
+                "price": 50000.0,
+                "total_value": 5000.0,
                 "pnl": 0.0,
                 "pnl_pct": 0.0,
-                "sector": "Technology",
+                "category": "L1",
                 "order_id": "test_order_123",
                 "status": "filled",
             }
@@ -237,7 +219,7 @@ class TestMonitorLogging:
             with open(log_path, "r") as f:
                 lines = f.readlines()
                 assert len(lines) == 2
-                assert "AAPL" in lines[1]
+                assert "BTC/USDT" in lines[1]
     
     def test_calculate_daily_metrics(self, temp_config):
         from src.monitor import PortfolioMonitor

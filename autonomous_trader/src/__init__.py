@@ -1,5 +1,5 @@
-from .screener import StockScreener
-from .analyzer import StockAnalyzer
+from .screener import CryptoScreener, StockScreener
+from .analyzer import CryptoAnalyzer, StockAnalyzer
 from .executor import TradingExecutor
 from .risk import RiskManager
 from .portfolio import PositionTracker, TickerSectorCache
@@ -8,9 +8,17 @@ from .logger import setup_logging, load_config
 from .queue import TradeQueue, TradeSignal
 from .scheduler import MarketScheduler, start_scheduler
 from .researcher import ResearchAgent
+from .market_data import CryptoMarketData
+
+CryptoScreener = CryptoScreener
+StockScreener = CryptoScreener
+StockAnalyzer = CryptoAnalyzer
+CryptoAnalyzer = CryptoAnalyzer
 
 __all__ = [
+    "CryptoScreener",
     "StockScreener",
+    "CryptoAnalyzer",
     "StockAnalyzer",
     "TradingExecutor",
     "RiskManager",
@@ -24,4 +32,5 @@ __all__ = [
     "MarketScheduler",
     "start_scheduler",
     "ResearchAgent",
+    "CryptoMarketData",
 ]

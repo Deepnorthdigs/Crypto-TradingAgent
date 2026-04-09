@@ -1,12 +1,12 @@
 """
-Trade Queue Management
+Trade Queue Management for Crypto
 Stores validated signals for later execution during market hours.
 """
 
 import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 import logging
 
@@ -15,7 +15,7 @@ logger = logging.getLogger("autonomous_trader")
 
 @dataclass
 class TradeSignal:
-    """Represents a validated trade signal ready for execution"""
+    """Represents a validated trade signal ready for execution (crypto-adapted)"""
     ticker: str
     action: str
     confidence: float
@@ -25,11 +25,14 @@ class TradeSignal:
     analysis_timestamp: str
     queued_at: str
     expires_at: str
-    metadata: Dict = None
-
-    def __post_init__(self):
-        if self.metadata is None:
-            self.metadata = {}
+    metadata: Dict = field(default_factory=dict)
+    
+    chain: str = ""
+    category: str = ""
+    exchange_listed: List[str] = field(default_factory=list)
+    suggested_holding_period: str = ""
+    catalyst_within_window: str = ""
+    upcoming_unlock_flag: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -89,7 +92,7 @@ class TradeQueue:
                 logger.warning(f"Queue: Skipping {signal.ticker} - already queued recently")
                 return False
 
-        max_size = queue_config.get('max_queue_size', 50)
+        max_size = queue_config.get('max_queue_size', 30)
         if len(self._pending) >= max_size:
             logger.warning(f"Queue full ({len(self._pending)} signals). Rejecting {signal.ticker}")
             return False
@@ -100,10 +103,10 @@ class TradeQueue:
 
         self._pending.append(signal)
         self._save_queue()
-        logger.info(f"Queued {signal.ticker} (expires: {signal.expires_at})")
+        logger.info(f"Queued {signal.ticker} (expires: {signal.expires_at}, category: {signal.category})")
         return True
 
-    def dequeue(self, max_signals: int = None) -> List[TradeSignal]:
+    def dequeue(self, max_signals: Optional[int] = None) -> List[TradeSignal]:
         valid = [sig for sig in self._pending if not sig.is_expired()]
         valid.sort(key=lambda x: x.confidence, reverse=True)
 
@@ -137,7 +140,7 @@ class TradeQueue:
             requeue = queue_config.get('requeue_failed', True)
 
             if requeue:
-                expiry_days = self.config.get('execution', {}).get('signal_expiry_days', 2)
+                expiry_days = self.config.get('execution', {}).get('signal_expiry_days', 7)
                 for sig in signals:
                     sig.queued_at = datetime.now().isoformat()
                     sig.expires_at = (datetime.now() + timedelta(days=expiry_days)).isoformat()
